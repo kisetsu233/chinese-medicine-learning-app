@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-primary: #08644c;
+  --color-primary-container: #2e7d64;
+  --color-on-primary-container: #d2ffeb;
+  --color-surface: #f7faf6;
+  --color-surface-container: #ebefeb;
+  --color-surface-container-low: #f1f4f1;
+  --color-surface-container-high: #e6e9e5;
+  --color-surface-container-highest: #e0e3e0;
+  --color-on-surface: #181c1a;
+  --color-on-surface-variant: #3f4944;
+  --color-outline: #6f7974;
+  --color-outline-variant: #bec9c2;
+}
+
+@import "react-quill-new/dist/quill.snow.css";
+
+.ql-container {
+  font-family: inherit !important;
+  font-size: 14px !important;
+  border: none !important;
+}
+
+.ql-toolbar {
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: 1px solid rgba(5, 46, 22, 0.1) !important;
+  background: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.ql-editor {
+  min-height: 500px;
+  padding: 40px !important;
+  line-height: 1.8 !important;
+}
+
+.ql-editor.ql-blank::before {
+  color: rgba(5, 46, 22, 0.2) !important;
+  font-style: normal !important;
+  left: 40px !important;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface antialiased;
+  }
+}
+
+.glass-panel {
+  @apply bg-surface/85 backdrop-blur-xl;
+}
+
+.watermark-bg {
+  @apply absolute inset-0 pointer-events-none z-0 opacity-[0.12] bg-cover bg-center mix-blend-multiply;
+}
+
