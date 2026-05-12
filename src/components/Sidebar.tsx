@@ -1,7 +1,10 @@
-import { Search, Sun, Folder, Sprout, Calendar, Settings, Crown, ChevronLeft, Download } from 'lucide-react';
+import { BookOpen, Calendar, ListChecks, Search, Folder, Download, Settings, ChevronLeft, Sun } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useState } from 'react';
 import ExportModal from './ExportModal';
+import { api } from '../services/api';
+import { storage } from '../services/storage';
+import { useEffect } from 'react';
 
 interface SidebarProps {
   activeTab: string;
@@ -16,16 +19,34 @@ export default function Sidebar({ activeTab, isCollapsed, onTabChange, onCollaps
   const navItems = [
     { id: 'today', name: 'Today', icon: Sun },
     { id: 'all-journals', name: '日历', icon: Calendar },
-    { id: 'materia-medica', name: '中药图鉴', icon: Sprout },
+    { id: 'prescriptions-summary', name: '药方归总', icon: ListChecks },
+    { id: 'materia-medica', name: '中药图鉴', icon: BookOpen },
   ];
 
-  const handleExportClick = () => {
-    setIsExportModalOpen(true);
+  const [journalData, setJournalData] = useState<Record<string, any>>({});
+  const [isStorageConnected, setIsStorageConnected] = useState(false);
+
+  useEffect(() => {
+    storage.isConnected().then(setIsStorageConnected);
+  }, []);
+
+  const handleConnect = async () => {
+    const success = await storage.connect();
+    setIsStorageConnected(success);
   };
 
-  const getJournalData = () => {
-    const saved = localStorage.getItem('journal-content');
-    return saved ? JSON.parse(saved) : {};
+  const handleExportClick = async () => {
+    if (!isStorageConnected) {
+      alert('请先连接本地存储文件夹');
+      return;
+    }
+    try {
+      const data = await api.getJournals();
+      setJournalData(data);
+      setIsExportModalOpen(true);
+    } catch (e) {
+      console.error('Failed to fetch journals for export', e);
+    }
   };
 
   return (
@@ -34,7 +55,7 @@ export default function Sidebar({ activeTab, isCollapsed, onTabChange, onCollaps
         "h-screen glass-panel border-r border-outline-variant/30 flex flex-col py-6 relative transition-all duration-300",
         isCollapsed ? "w-[64px]" : "w-[157px]"
       )}>
-        <button 
+        <button
           onClick={onCollapse}
           className={cn(
             "absolute top-6 p-1.5 rounded-lg hover:bg-surface-container-high text-on-surface-variant transition-all",
@@ -92,8 +113,23 @@ export default function Sidebar({ activeTab, isCollapsed, onTabChange, onCollaps
           ))}
         </div>
 
-        <div className="mt-auto px-2 space-y-4">
-          <button 
+        <div className="mt-auto px-2 space-y-2">
+          <button
+            onClick={handleConnect}
+            className={cn(
+              "w-full py-1.5 px-3 rounded-lg text-xs transition-all flex items-center justify-center gap-2 border shadow-sm font-medium overflow-hidden group",
+              isStorageConnected
+                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                : "bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100",
+              isCollapsed ? "p-3" : ""
+            )}
+            title={isCollapsed ? (isStorageConnected ? "已连接" : "连接文件夹") : undefined}
+          >
+            <Folder className={cn("w-3.5 h-3.5 shrink-0", !isStorageConnected && "animate-pulse")} />
+            {!isCollapsed && <span>{isStorageConnected ? '已连接存储' : '连接文件夹'}</span>}
+          </button>
+
+          <button
             onClick={handleExportClick}
             className={cn(
               "w-full py-1.5 px-3 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-lg text-xs transition-all flex items-center justify-center gap-2 border border-outline-variant/30 shadow-sm font-medium overflow-hidden group",
@@ -104,8 +140,8 @@ export default function Sidebar({ activeTab, isCollapsed, onTabChange, onCollaps
             <Download className="w-3.5 h-3.5 text-primary shrink-0 group-hover:scale-110 transition-transform" />
             {!isCollapsed && <span>导出笔记</span>}
           </button>
-          
-          <button 
+
+          <button
             onClick={() => onTabChange('settings')}
             className={cn(
               "w-full flex items-center gap-2.5 rounded-lg text-xs transition-all overflow-hidden",
@@ -120,10 +156,10 @@ export default function Sidebar({ activeTab, isCollapsed, onTabChange, onCollaps
         </div>
       </nav>
 
-      <ExportModal 
+      <ExportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
-        journalData={getJournalData()}
+        journalData={journalData}
       />
     </>
   );

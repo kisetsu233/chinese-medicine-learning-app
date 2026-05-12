@@ -91,7 +91,7 @@ export default function ClinicalNoteViewer({ data, onHerbClick }: ClinicalNoteVi
                   return (
                     <div key={sub} className="space-y-1">
                       <h4 className="text-[9px] font-black text-emerald-900/20 uppercase tracking-[0.2em] pl-1">{SUBSECTION_LABELS[sub]}</h4>
-                      <div className="p-4 bg-[#f8fbfa] border border-emerald-950/5 text-xs leading-relaxed text-emerald-950">
+                      <div className="p-4 bg-[#f8fbfa] border border-emerald-950/5 text-xs leading-relaxed text-emerald-950 whitespace-pre-wrap">
                         {sub === 'base-presc' ? (
                           <div className="flex flex-wrap gap-2">
                             {content.split(/[，、,;； \n\t]+/).filter(tag => tag.trim()).map((tag, idx) => {
@@ -117,7 +117,7 @@ export default function ClinicalNoteViewer({ data, onHerbClick }: ClinicalNoteVi
                 })}
               </div>
             ) : (
-              <div className="p-4 bg-[#f8fbfa] border border-emerald-950/5 text-xs leading-relaxed text-emerald-950">
+              <div className="p-4 bg-[#f8fbfa] border border-emerald-950/5 text-xs leading-relaxed text-emerald-950 whitespace-pre-wrap">
                 {parsedData[section.id]}
               </div>
             )}

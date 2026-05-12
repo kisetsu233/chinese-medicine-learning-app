@@ -9,6 +9,9 @@ export default defineConfig(({mode}) => {
     plugins: [react(), tailwindcss()],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      'process.env.ANTHROPIC_API_KEY': JSON.stringify(env.ANTHROPIC_API_KEY),
+      'process.env.LOCAL_MODEL_ENDPOINT': JSON.stringify(env.LOCAL_MODEL_ENDPOINT),
+      'process.env.LOCAL_MODEL_NAME': JSON.stringify(env.LOCAL_MODEL_NAME),
     },
     resolve: {
       alias: {

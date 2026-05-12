@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, ChevronRight, MapPin, Edit, Share2, ClipboardList, Info, AlertCircle, Bookmark, Menu, Check, Plus, Save, X, PanelLeftClose, PanelLeftOpen, Trash2 } from 'lucide-react';
-import { MOCK_PRESCRIPTIONS, WATERMARK_IMAGES } from '../types';
+import { WATERMARK_IMAGES, Prescription } from '../types';
 import { cn } from '../lib/utils';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addYears, subYears, startOfYear, endOfYear, eachMonthOfInterval, addDays, subDays, isToday } from 'date-fns';
+import { api } from '../services/api';
 import PrescriptionForm, { TCMData } from './PrescriptionForm';
 import ClinicalNoteForm from './ClinicalNoteForm';
 import ClinicalNoteViewer from './ClinicalNoteViewer';
@@ -23,6 +24,7 @@ interface CalendarViewProps {
   onHerbClick?: (name: string, prescriptionName?: string) => void;
   initialPrescriptionName?: string;
   onPrescriptionHandled?: () => void;
+  initialDate?: Date;
 }
 
 export default function CalendarView({ 
@@ -31,16 +33,15 @@ export default function CalendarView({
   onSidebarToggle, 
   onHerbClick,
   initialPrescriptionName,
-  onPrescriptionHandled
+  onPrescriptionHandled,
+  initialDate
 }: CalendarViewProps) {
-  const [currentYear, setCurrentYear] = useState(new Date(2026, 0, 1));
-  const [selectedDate, setSelectedDate] = useState(new Date(2026, 4, 7));
+  const [currentYear, setCurrentYear] = useState(() => initialDate ? startOfYear(initialDate) : new Date(2026, 0, 1));
+  const [selectedDate, setSelectedDate] = useState(() => initialDate || new Date(2026, 4, 7));
   const [isCalendarVisible, setIsCalendarVisible] = useState(true);
 
-  const [content, setContent] = useState<Record<string, ContentData>>(() => {
-    const saved = localStorage.getItem('journal-content');
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [content, setContent] = useState<Record<string, ContentData>>({});
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [activeEditor, setActiveEditor] = useState<'note' | 'tcm' | 'genNote' | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -48,10 +49,21 @@ export default function CalendarView({
     onEditorToggle?.(!!activeEditor);
   }, [activeEditor, onEditorToggle]);
 
-  // Auto-save effect
   useEffect(() => {
-    localStorage.setItem('journal-content', JSON.stringify(content));
-  }, [content]);
+    const loadData = async () => {
+      try {
+        const [journalsData, prescriptsData] = await Promise.all([
+          api.getJournals(),
+          api.getPrescriptions()
+        ]);
+        setContent(journalsData);
+        setPrescriptions(prescriptsData);
+      } catch (e) {
+        console.error("Failed to load calendar data", e);
+      }
+    };
+    loadData();
+  }, []);
 
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
   const currentData = content[dateKey] || {};
@@ -97,7 +109,18 @@ export default function CalendarView({
         } else {
           nextContent[dateKey] = oldDayContent;
         }
+        api.saveJournal(dateKey, {
+          note: nextContent[dateKey]?.note,
+          tcm: nextContent[dateKey]?.tcm,
+          genNote: nextContent[dateKey]?.genNote
+        }).catch(console.error);
       }
+
+      api.saveJournal(targetDateKey, {
+        note: nextContent[targetDateKey]?.note,
+        tcm: nextContent[targetDateKey]?.tcm,
+        genNote: nextContent[targetDateKey]?.genNote
+      }).catch(console.error);
 
       return nextContent;
     });
@@ -118,6 +141,12 @@ export default function CalendarView({
         nextContent[dateKey] = nextDayContent;
       }
       
+      api.saveJournal(dateKey, {
+        note: nextContent[dateKey]?.note,
+        tcm: nextContent[dateKey]?.tcm,
+        genNote: nextContent[dateKey]?.genNote
+      }).catch(console.error);
+
       return nextContent;
     });
   }, [dateKey]);
@@ -127,7 +156,7 @@ export default function CalendarView({
     end: endOfYear(currentYear)
   });
 
-  const selectedPrescription = MOCK_PRESCRIPTIONS.find(p => isSameDay(new Date(p.date), selectedDate)) || (initialPrescriptionName ? MOCK_PRESCRIPTIONS.find(p => p.name === initialPrescriptionName) : undefined);
+  const selectedPrescription = prescriptions.find(p => p.date && isSameDay(new Date(p.date), selectedDate)) || (initialPrescriptionName ? prescriptions.find(p => p.name === initialPrescriptionName) : undefined);
 
   useEffect(() => {
     if (initialPrescriptionName && selectedPrescription) {
@@ -232,7 +261,7 @@ export default function CalendarView({
                       const isSelected = isSameDay(day, selectedDate);
                       const key = format(day, 'yyyy-MM-dd');
                       const hasUserContent = content[key] && (content[key].note || content[key].tcm);
-                      const hasPrescription = MOCK_PRESCRIPTIONS.some(p => isSameDay(new Date(p.date), day));
+                      const hasPrescription = prescriptions.some(p => p.date && isSameDay(new Date(p.date), day));
                       
                       return (
                         <button
@@ -289,11 +318,12 @@ export default function CalendarView({
         {activeEditor ? (
            <div className="h-full w-full bg-white z-50 animate-in fade-in duration-300">
               {activeEditor === 'tcm' ? (
-                <PrescriptionForm 
-                  initialData={currentData.tcm}
-                  onSave={(data) => handleUpdateContent('tcm', data)}
-                  onClose={() => setActiveEditor(null)}
-                />
+            <PrescriptionForm 
+              initialData={currentData.tcm}
+              initialDate={dateKey}
+              onSave={(data) => handleUpdateContent('tcm', data)}
+              onClose={() => setActiveEditor(null)}
+            />
               ) : activeEditor === 'note' ? (
                <ClinicalNoteForm 
                  initialValue={currentData.note}
@@ -435,7 +465,7 @@ export default function CalendarView({
                     {currentData.tcm.suitability && (
                       <div className="space-y-3">
                         <h4 className="text-[11px] font-bold text-green-900/30 uppercase tracking-[0.2em] pl-1">适用人群和范围</h4>
-                        <div className="p-6 bg-white/40 border border-green-900/5 text-sm leading-relaxed text-on-surface/70">
+                        <div className="p-6 bg-white/40 border border-green-900/5 text-sm leading-relaxed text-on-surface/70 whitespace-pre-wrap">
                           {currentData.tcm.suitability}
                         </div>
                       </div>
@@ -448,18 +478,18 @@ export default function CalendarView({
                             <span className="text-base">✓</span>
                             组方优点
                           </h4>
-                          <div className="p-6 bg-emerald-50/20 border border-emerald-100/30 rounded-2xl text-sm leading-relaxed text-emerald-900/70">
+                          <div className="p-6 bg-emerald-50/20 border border-emerald-100/30 rounded-2xl text-sm leading-relaxed text-emerald-900/70 whitespace-pre-wrap">
                             {currentData.tcm.pros}
                           </div>
                         </div>
                       )}
                       {currentData.tcm.cons && (
                         <div className="space-y-4">
-                          <h4 className="text-[11px] font-black text-rose-400 uppercase tracking-widest pl-1 flex items-center gap-2 justify-end">
+                          <h4 className="text-[11px] font-black text-rose-400 uppercase tracking-widest pl-1 flex items-center gap-2">
                             <span className="text-base text-rose-300">✕</span>
                             组方不足
                           </h4>
-                          <div className="p-6 bg-rose-50/20 border border-rose-100/30 rounded-2xl text-sm leading-relaxed text-rose-900/70 text-right">
+                          <div className="p-6 bg-rose-50/20 border border-rose-100/30 rounded-2xl text-sm leading-relaxed text-rose-900/70 whitespace-pre-wrap">
                             {currentData.tcm.cons}
                           </div>
                         </div>
@@ -472,7 +502,7 @@ export default function CalendarView({
                           <AlertCircle className="w-4 h-4" />
                           禁忌
                         </h4>
-                        <div className="p-6 bg-rose-50/40 border border-rose-100/50 rounded-2xl text-base font-bold leading-relaxed text-rose-900 shadow-sm">
+                        <div className="p-6 bg-rose-50/40 border border-rose-100/50 rounded-2xl text-base font-bold leading-relaxed text-rose-900 shadow-sm whitespace-pre-wrap">
                           {currentData.tcm.forbidden}
                         </div>
                       </div>
@@ -492,7 +522,7 @@ export default function CalendarView({
                     {currentData.tcm.notes && (
                       <div className="space-y-2">
                         <h4 className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-widest pl-1">学习备注</h4>
-                        <div className="p-5 bg-white/60 rounded-2xl border border-outline-variant/10 text-sm leading-relaxed text-on-surface italic">
+                        <div className="p-5 bg-white/60 rounded-2xl border border-outline-variant/10 text-sm leading-relaxed text-on-surface italic whitespace-pre-wrap">
                           "{currentData.tcm.notes}"
                         </div>
                       </div>

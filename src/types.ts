@@ -9,7 +9,10 @@ export interface Herb {
   functions?: string; // 功效
   applications?: string[]; // 应用
   herbPairs?: { name: string; effect: string }[]; // 药对
+  dosageUsage?: string; // 用量和用法
+  precautions?: string; // 注意事项
   image: string;
+  isManual?: boolean; // 是否手动修改过，防止自动刷新覆盖
   properties?: string[]; // Legacy compatibility
   channels?: string[]; // Legacy compatibility
   efficacy?: string; // Legacy compatibility

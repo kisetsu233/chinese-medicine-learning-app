@@ -61,7 +61,7 @@ export default function GeneralNoteForm({ onClose, onSave, initialValue = '', in
       ['bold', 'italic', 'underline', 'strike'],
       [{ 'color': [] }, { 'background': [] }],
       [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-      ['clean']
+      ['image', 'clean']
     ],
   };
 

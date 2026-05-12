@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { format, addDays, subDays } from 'date-fns';
-import { Edit, ClipboardList, X, ChevronLeft, ChevronRight, AlertCircle, PanelLeftClose, PanelLeftOpen, Trash2 } from 'lucide-react';
+import { Edit, ClipboardList, X, ChevronLeft, ChevronRight, AlertCircle, PanelLeftClose, PanelLeftOpen, Trash2, Printer } from 'lucide-react';
 import { WATERMARK_IMAGES } from '../types';
 import PrescriptionForm, { TCMData } from './PrescriptionForm';
 import ClinicalNoteForm from './ClinicalNoteForm';
 import ClinicalNoteViewer from './ClinicalNoteViewer';
 import GeneralNoteForm from './GeneralNoteForm';
 import GeneralNoteViewer from './GeneralNoteViewer';
+import { api } from '../services/api';
 
 type ContentData = {
   note?: string;
@@ -24,10 +25,7 @@ interface TodayViewProps {
 
 export default function TodayView({ onEditorToggle, isSidebarVisible, onSidebarToggle, onHerbClick }: TodayViewProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [content, setContent] = useState<Record<string, ContentData>>(() => {
-    const saved = localStorage.getItem('journal-content');
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [content, setContent] = useState<Record<string, ContentData>>({});
   const [activeEditor, setActiveEditor] = useState<'note' | 'tcm' | 'genNote' | null>(null);
 
   useEffect(() => {
@@ -38,8 +36,27 @@ export default function TodayView({ onEditorToggle, isSidebarVisible, onSidebarT
   const currentData = content[dateKey] || {};
 
   useEffect(() => {
-    localStorage.setItem('journal-content', JSON.stringify(content));
-  }, [content]);
+    const loadJournal = async () => {
+      try {
+        const data = await api.getJournal(dateKey);
+        if (data && (data.note || data.tcm || data.genNote)) {
+          setContent(prev => ({
+            ...prev,
+            [dateKey]: {
+              note: data.note,
+              tcm: data.tcm,
+              genNote: data.genNote
+            }
+          }));
+        }
+      } catch (e) {
+        console.error('Failed to load journal', e);
+      }
+    };
+    if (!content[dateKey]) {
+      loadJournal();
+    }
+  }, [dateKey, content]);
 
   const handleUpdateContent = useCallback((type: 'note' | 'tcm' | 'genNote', value: string | TCMData) => {
     setContent(prev => {
@@ -81,7 +98,20 @@ export default function TodayView({ onEditorToggle, isSidebarVisible, onSidebarT
         } else {
           nextContent[dateKey] = oldDayContent;
         }
+        // Save the deletion from the old day
+        api.saveJournal(dateKey, {
+          note: nextContent[dateKey]?.note,
+          tcm: nextContent[dateKey]?.tcm,
+          genNote: nextContent[dateKey]?.genNote
+        }).catch(console.error);
       }
+
+      // Save the new/updated day
+      api.saveJournal(targetDateKey, {
+        note: nextContent[targetDateKey]?.note,
+        tcm: nextContent[targetDateKey]?.tcm,
+        genNote: nextContent[targetDateKey]?.genNote
+      }).catch(console.error);
 
       return nextContent;
     });
@@ -105,9 +135,19 @@ export default function TodayView({ onEditorToggle, isSidebarVisible, onSidebarT
         nextContent[dateKey] = nextDayContent;
       }
       
+      api.saveJournal(dateKey, {
+        note_content: nextContent[dateKey]?.note,
+        tcm_content: nextContent[dateKey]?.tcm,
+        gen_note_content: nextContent[dateKey]?.genNote
+      }).catch(console.error);
+
       return nextContent;
     });
   }, [dateKey]);
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   if (activeEditor) {
     return (
@@ -115,6 +155,7 @@ export default function TodayView({ onEditorToggle, isSidebarVisible, onSidebarT
          {activeEditor === 'tcm' ? (
            <PrescriptionForm 
              initialData={currentData.tcm}
+             initialDate={dateKey}
              onSave={(data) => handleUpdateContent('tcm', data)}
              onClose={() => setActiveEditor(null)}
            />
@@ -178,6 +219,15 @@ export default function TodayView({ onEditorToggle, isSidebarVisible, onSidebarT
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>
+
+          <button 
+            onClick={handlePrint}
+            className="absolute right-0 p-2 rounded-xl bg-white border border-emerald-950/10 text-emerald-950 hover:bg-emerald-50 hover:border-emerald-500/30 transition-all shadow-sm flex items-center gap-2 group"
+            title="打印当前页面"
+          >
+            <Printer className="w-4 h-4 text-emerald-800" />
+            <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">打印 PDF</span>
+          </button>
         </header>
 
 
@@ -254,7 +304,7 @@ export default function TodayView({ onEditorToggle, isSidebarVisible, onSidebarT
                   {currentData.tcm.suitability && (
                     <div className="space-y-3">
                       <h4 className="text-[11px] font-bold text-green-900/30 uppercase tracking-[0.2em] pl-1">适用人群和范围</h4>
-                      <div className="p-6 bg-white/40 border border-green-900/5 text-sm leading-relaxed text-on-surface/70">
+                      <div className="p-6 bg-white/40 border border-green-900/5 text-sm leading-relaxed text-on-surface/70 whitespace-pre-wrap">
                         {currentData.tcm.suitability}
                       </div>
                     </div>
@@ -267,18 +317,18 @@ export default function TodayView({ onEditorToggle, isSidebarVisible, onSidebarT
                           <span className="text-base">✓</span>
                           组方优点
                         </h4>
-                        <div className="p-6 bg-emerald-50/20 border border-emerald-100/30 rounded-2xl text-sm leading-relaxed text-emerald-900/70">
+                          <div className="p-6 bg-emerald-50/20 border border-emerald-100/30 rounded-2xl text-sm leading-relaxed text-emerald-900/70 whitespace-pre-wrap">
                           {currentData.tcm.pros}
                         </div>
                       </div>
                     )}
                     {currentData.tcm.cons && (
                       <div className="space-y-4">
-                        <h4 className="text-[11px] font-black text-rose-400 uppercase tracking-widest pl-1 flex items-center gap-2 text-right justify-end">
+                        <h4 className="text-[11px] font-black text-rose-400 uppercase tracking-widest pl-1 flex items-center gap-2">
                           <span className="text-base text-rose-300">✕</span>
                           组方不足
                         </h4>
-                        <div className="p-6 bg-rose-50/20 border border-rose-100/30 rounded-2xl text-sm leading-relaxed text-rose-900/70 text-right">
+                        <div className="p-6 bg-rose-50/20 border border-rose-100/30 rounded-2xl text-sm leading-relaxed text-rose-900/70 whitespace-pre-wrap">
                           {currentData.tcm.cons}
                         </div>
                       </div>
@@ -291,7 +341,7 @@ export default function TodayView({ onEditorToggle, isSidebarVisible, onSidebarT
                         <AlertCircle className="w-4 h-4" />
                         禁忌
                       </h4>
-                      <div className="p-6 bg-rose-50/40 border border-rose-100/50 rounded-2xl text-base font-bold leading-relaxed text-rose-900 shadow-sm">
+                      <div className="p-6 bg-rose-50/40 border border-rose-100/50 rounded-2xl text-base font-bold leading-relaxed text-rose-900 shadow-sm whitespace-pre-wrap">
                         {currentData.tcm.forbidden}
                       </div>
                     </div>
@@ -311,7 +361,7 @@ export default function TodayView({ onEditorToggle, isSidebarVisible, onSidebarT
                   {currentData.tcm.notes && (
                     <div className="space-y-2">
                       <h4 className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-widest pl-1">学习备注</h4>
-                      <div className="p-5 bg-white/60 rounded-2xl border border-outline-variant/10 text-sm leading-relaxed text-on-surface italic">
+                      <div className="p-5 bg-white/60 rounded-2xl border border-outline-variant/10 text-sm leading-relaxed text-on-surface italic whitespace-pre-wrap">
                         "{currentData.tcm.notes}"
                       </div>
                     </div>

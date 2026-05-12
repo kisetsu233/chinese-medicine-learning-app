@@ -4,6 +4,7 @@ import { X, Plus, Calendar, Info, AlertCircle, Bookmark, Save, Trash2, Clipboard
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
 import { WATERMARK_IMAGES } from '../types';
+import ReactQuill from 'react-quill-new';
 import {
   DndContext, 
   closestCenter,
@@ -54,6 +55,7 @@ const DEFAULT_TCM: TCMData = {
 
 interface PrescriptionFormProps {
   initialData?: TCMData;
+  initialDate?: string;
   onSave: (data: TCMData) => void;
   onClose: () => void;
 }
@@ -128,8 +130,11 @@ const SECTIONS = [
   { id: 'notes', label: '学习备注', icon: BookOpen },
 ];
 
-export default function PrescriptionForm({ initialData, onSave, onClose }: PrescriptionFormProps) {
-  const [data, setData] = useState<TCMData>({ ...DEFAULT_TCM, ...initialData });
+export default function PrescriptionForm({ initialData, initialDate, onSave, onClose }: PrescriptionFormProps) {
+  const [data, setData] = useState<TCMData>(() => {
+    const defaultDate = initialDate || format(new Date(), 'yyyy-MM-dd');
+    return { ...DEFAULT_TCM, date: defaultDate, ...initialData };
+  });
   const [herbInput, setHerbInput] = useState('');
   const [duplicateError, setDuplicateError] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -212,6 +217,15 @@ export default function PrescriptionForm({ initialData, onSave, onClose }: Presc
     setIsSaving(true);
     onSave(data);
     setTimeout(() => setIsSaving(false), 1500);
+  };
+
+  const modules = {
+    toolbar: [
+      ['bold', 'italic', 'underline'],
+      [{ 'color': [] }],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+      ['image', 'clean']
+    ],
   };
 
   return (
@@ -512,12 +526,16 @@ export default function PrescriptionForm({ initialData, onSave, onClose }: Presc
                 <BookOpen className="w-4 h-4 text-emerald-800" />
                 <h2 className="text-sm font-black text-emerald-950 uppercase tracking-widest">学习备注</h2>
               </div>
-              <textarea 
-                placeholder="心得体会、案例分析..."
-                value={data.notes}
-                onChange={(e) => updateField('notes', e.target.value)}
-                className="w-full h-32 p-3 bg-[#fafbfb] border border-emerald-950/10 focus:outline-none focus:border-emerald-600/40 text-xs leading-relaxed"
-              />
+              <div className="border border-emerald-950/10 bg-[#fafbfb] focus-within:border-emerald-500/30 transition-all">
+                <ReactQuill 
+                  theme="snow"
+                  value={data.notes}
+                  onChange={(val) => updateField('notes', val)}
+                  modules={modules}
+                  placeholder="心得体会、案例分析..."
+                  className="rich-editor-small"
+                />
+              </div>
             </section>
             <div className="h-12" />
           </div>

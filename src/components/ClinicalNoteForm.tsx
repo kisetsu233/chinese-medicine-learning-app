@@ -4,6 +4,7 @@ import { X, Save, Share2, ClipboardList, Microscope, Sprout, Coffee, Pill, Hand,
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { WATERMARK_IMAGES } from '../types';
+import ReactQuill from 'react-quill-new';
 
 interface ClinicalNoteFormProps {
   onClose: () => void;
@@ -92,6 +93,15 @@ export default function ClinicalNoteForm({ onClose, onSave, initialValue = '', i
   const handleSaveAndClose = () => {
     onSave(JSON.stringify(formData));
     onClose();
+  };
+
+  const modules = {
+    toolbar: [
+      ['bold', 'italic', 'underline'],
+      [{ 'color': [] }],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+      ['image', 'clean']
+    ],
   };
 
   return (
@@ -210,12 +220,16 @@ export default function ClinicalNoteForm({ onClose, onSave, initialValue = '', i
                 </div>
 
                 {!section.subsections ? (
-                  <textarea 
-                    className="w-full min-h-[80px] p-3 border border-emerald-950/10 bg-[#fafbfb] focus:outline-none focus:border-emerald-500/30 text-xs leading-relaxed transition-all placeholder:text-emerald-950/20"
-                    placeholder={`${section.label}内容...`}
-                    value={formData[section.id] || ''}
-                    onChange={(e) => handleChange(section.id, e.target.value)}
-                  />
+                  <div className="border border-emerald-950/10 bg-[#fafbfb] focus-within:border-emerald-500/30 transition-all">
+                    <ReactQuill 
+                      theme="snow"
+                      value={formData[section.id] || ''}
+                      onChange={(val) => handleChange(section.id, val)}
+                      modules={modules}
+                      placeholder={`${section.label}内容...`}
+                      className="rich-editor-small"
+                    />
+                  </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-4">
                     {section.subsections.map((sub) => (
@@ -223,12 +237,16 @@ export default function ClinicalNoteForm({ onClose, onSave, initialValue = '', i
                         <label className="text-[9px] font-black text-emerald-950/40 uppercase tracking-[0.2em] pl-1">
                           {sub.label}
                         </label>
-                        <textarea 
-                          className="w-full min-h-[60px] p-4 border border-emerald-950/10 bg-[#fafbfb] focus:outline-none focus:border-emerald-500/30 text-xs leading-relaxed transition-all placeholder:text-emerald-950/20"
-                          placeholder={`${sub.label}...`}
-                          value={formData[sub.id] || ''}
-                          onChange={(e) => handleChange(sub.id, e.target.value)}
-                        />
+                        <div className="border border-emerald-950/10 bg-[#fafbfb] focus-within:border-emerald-500/30 transition-all">
+                          <ReactQuill 
+                            theme="snow"
+                            value={formData[sub.id] || ''}
+                            onChange={(val) => handleChange(sub.id, val)}
+                            modules={modules}
+                            placeholder={`${sub.label}...`}
+                            className="rich-editor-small"
+                          />
+                        </div>
                         {sub.id === 'base-presc' && formData[sub.id] && (
                           <div className="flex flex-wrap gap-1 px-1 mt-1">
                             {formData[sub.id].split(/[，、,;； \n\t]+/).filter(tag => tag.trim()).map((tag, idx) => {
