@@ -1,6 +1,7 @@
 # 一味坚持 (TCM Companion) 🌿
 
-![UI Preview](public/preview.png)
+<img width="1313" height="810" alt="preview" src="https://github.com/user-attachments/assets/35ed8fbc-b92a-4943-886e-ba86525472d1" />
+
 
 **一味坚持** 是一款专为中医从业者、学生及爱好者设计的私人化临床记录与知识管理工具。它结合了极简主义设计与中医美学，旨在通过纯本地化的数据管理，构建一个高效、优雅且绝对私密的诊疗记录平台。
 
