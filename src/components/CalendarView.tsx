@@ -156,16 +156,32 @@ export default function CalendarView({
     end: endOfYear(currentYear)
   });
 
-  const selectedPrescription = prescriptions.find(p => p.date && isSameDay(new Date(p.date), selectedDate)) || (initialPrescriptionName ? prescriptions.find(p => p.name === initialPrescriptionName) : undefined);
+  const selectedPrescription = (initialPrescriptionName ? prescriptions.find(p => p.name === initialPrescriptionName) : undefined) || prescriptions.find(p => p.date && isSameDay(new Date(p.date), selectedDate));
 
   useEffect(() => {
-    if (initialPrescriptionName && selectedPrescription) {
-      setSelectedDate(new Date(selectedPrescription.date));
-      // Once we've handled the initial prescription, we should notify the parent
-      // But we wait a bit to ensure everything is rendered
-      onPrescriptionHandled?.();
+    if (initialPrescriptionName) {
+      // First try to find it in the new journals format (content)
+      if (Object.keys(content).length > 0) {
+        const foundDate = Object.keys(content).find(d => content[d]?.tcm?.name === initialPrescriptionName);
+        if (foundDate) {
+          const [year, month, day] = foundDate.split('-').map(Number);
+          setSelectedDate(new Date(year, month - 1, day));
+          onPrescriptionHandled?.();
+          return;
+        }
+      }
+      
+      // Fallback to legacy prescriptions
+      if (prescriptions.length > 0) {
+        const p = prescriptions.find(p => p.name === initialPrescriptionName);
+        if (p && p.date) {
+          const [year, month, day] = p.date.split('-').map(Number);
+          setSelectedDate(new Date(year, month - 1, day));
+          onPrescriptionHandled?.();
+        }
+      }
     }
-  }, [initialPrescriptionName, selectedPrescription, onPrescriptionHandled]);
+  }, [initialPrescriptionName, content, prescriptions, onPrescriptionHandled]);
 
   const handleToday = () => {
     const today = new Date();

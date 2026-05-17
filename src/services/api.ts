@@ -68,6 +68,10 @@ export const api = {
     return herb;
   },
 
+  async deleteHerb(name: string): Promise<void> {
+    await storage.deleteFile('herbs', `${name}.json`);
+  },
+
   async uploadHerbImage(filename: string, blob: Blob): Promise<string> {
     const ext = filename.split('.').pop() || 'jpg';
     const localName = `image_${Date.now()}.${ext}`;

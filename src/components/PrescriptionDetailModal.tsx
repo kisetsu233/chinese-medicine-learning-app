@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ClipboardList, ExternalLink, Calendar, AlertCircle } from 'lucide-react';
 import { TCMData } from './PrescriptionForm';
@@ -12,7 +13,7 @@ interface PrescriptionDetailModalProps {
 }
 
 export default function PrescriptionDetailModal({ data, onClose, onGoToDate, onHerbClick }: PrescriptionDetailModalProps) {
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8">
       <motion.div
         initial={{ opacity: 0 }}
@@ -189,6 +190,7 @@ export default function PrescriptionDetailModal({ data, onClose, onGoToDate, onH
           </div>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 }

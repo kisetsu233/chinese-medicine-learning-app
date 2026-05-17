@@ -148,14 +148,14 @@ export default function App() {
           />
         );
       case 'prescriptions-summary':
-        return <PrescriptionSummary onPrescriptionClick={handleArchivePrescriptionClick} onHerbClick={handleHerbClick} />;
+        return <PrescriptionSummary onPrescriptionClick={handleArchivePrescriptionClick} onHerbClick={handleHerbClick} initialPrescriptionName={returnContext?.tab === 'prescriptions-summary' ? returnContext.prescriptionName : undefined} onPrescriptionHandled={() => setReturnContext(null)} />;
       case 'calendar':
       case 'all-journals':
       default:
         return (
           <CalendarView 
             {...editorProps} 
-            initialPrescriptionName={returnContext?.tab === 'calendar' ? returnContext.prescriptionName : undefined}
+            initialPrescriptionName={(returnContext?.tab === 'calendar' || returnContext?.tab === 'all-journals') ? returnContext.prescriptionName : undefined}
             onPrescriptionHandled={() => {
               setReturnContext(null);
               setTargetCalendarDate(undefined);

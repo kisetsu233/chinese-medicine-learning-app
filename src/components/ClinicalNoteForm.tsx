@@ -21,7 +21,6 @@ const SECTIONS = [
     subsections: [
       { id: 'what-is', label: '什么是【疾病名】' },
       { id: 'misconceptions', label: '治疗误区' },
-      { id: 'tcm-view', label: '中医如何看待' },
       { id: 'triggers', label: '诱发因素' },
     ]
   },
@@ -32,7 +31,6 @@ const SECTIONS = [
     subsections: [
       { id: 'tcm-mechanism', label: '中医病机' },
       { id: 'strategy', label: '调理思路' },
-      { id: 'methods', label: '调理方法' },
     ]
   },
   {
@@ -60,6 +58,20 @@ export default function ClinicalNoteForm({ onClose, onSave, initialValue = '', i
         if (!parsed.date) {
           parsed.date = initialDate || format(new Date(), 'yyyy-MM-dd');
         }
+        
+        // Clean legacy HTML from fields other than cases
+        Object.keys(parsed).forEach(key => {
+          if (key !== 'cases' && key !== 'date' && typeof parsed[key] === 'string' && parsed[key].includes('<')) {
+            parsed[key] = parsed[key]
+              .replace(/<p><br><\/p>/gi, '\n')
+              .replace(/<\/p>/gi, '\n')
+              .replace(/<br\s*\/?>/gi, '\n')
+              .replace(/<[^>]+>/g, '')
+              .replace(/&nbsp;/g, ' ')
+              .trim();
+          }
+        });
+        
         return parsed;
       }
     } catch (e) {}
@@ -221,13 +233,11 @@ export default function ClinicalNoteForm({ onClose, onSave, initialValue = '', i
 
                 {!section.subsections ? (
                   <div className="border border-emerald-950/10 bg-[#fafbfb] focus-within:border-emerald-500/30 transition-all">
-                    <ReactQuill 
-                      theme="snow"
+                    <textarea 
                       value={formData[section.id] || ''}
-                      onChange={(val) => handleChange(section.id, val)}
-                      modules={modules}
+                      onChange={(e) => handleChange(section.id, e.target.value)}
                       placeholder={`${section.label}内容...`}
-                      className="rich-editor-small"
+                      className="w-full min-h-[120px] p-4 bg-transparent outline-none resize-y text-sm leading-relaxed"
                     />
                   </div>
                 ) : (
@@ -238,14 +248,23 @@ export default function ClinicalNoteForm({ onClose, onSave, initialValue = '', i
                           {sub.label}
                         </label>
                         <div className="border border-emerald-950/10 bg-[#fafbfb] focus-within:border-emerald-500/30 transition-all">
-                          <ReactQuill 
-                            theme="snow"
-                            value={formData[sub.id] || ''}
-                            onChange={(val) => handleChange(sub.id, val)}
-                            modules={modules}
-                            placeholder={`${sub.label}...`}
-                            className="rich-editor-small"
-                          />
+                          {sub.id === 'cases' ? (
+                            <ReactQuill 
+                              theme="snow"
+                              value={formData[sub.id] || ''}
+                              onChange={(val) => handleChange(sub.id, val)}
+                              modules={modules}
+                              placeholder={`${sub.label}...`}
+                              className="rich-editor-small"
+                            />
+                          ) : (
+                            <textarea 
+                              value={formData[sub.id] || ''}
+                              onChange={(e) => handleChange(sub.id, e.target.value)}
+                              placeholder={`${sub.label}...`}
+                              className="w-full min-h-[100px] p-4 bg-transparent outline-none resize-y text-sm leading-relaxed"
+                            />
+                          )}
                         </div>
                         {sub.id === 'base-presc' && formData[sub.id] && (
                           <div className="flex flex-wrap gap-1 px-1 mt-1">

@@ -10,9 +10,11 @@ import { TCMData } from './PrescriptionForm';
 interface PrescriptionSummaryProps {
   onPrescriptionClick: (date: string) => void;
   onHerbClick?: (name: string, prescriptionName?: string) => void;
+  initialPrescriptionName?: string;
+  onPrescriptionHandled?: () => void;
 }
 
-export default function PrescriptionSummary({ onPrescriptionClick, onHerbClick }: PrescriptionSummaryProps) {
+export default function PrescriptionSummary({ onPrescriptionClick, onHerbClick, initialPrescriptionName, onPrescriptionHandled }: PrescriptionSummaryProps) {
   const [prescriptions, setPrescriptions] = useState<{ date: string; name: string }[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,16 @@ export default function PrescriptionSummary({ onPrescriptionClick, onHerbClick }
     };
     loadPrescriptions();
   }, []);
+
+  useEffect(() => {
+    if (initialPrescriptionName && !loading && Object.keys(allJournalData).length > 0) {
+      const entry = Object.values(allJournalData).find(day => day?.tcm?.name === initialPrescriptionName);
+      if (entry && entry.tcm) {
+        setSelectedTcm(entry.tcm);
+        onPrescriptionHandled?.();
+      }
+    }
+  }, [initialPrescriptionName, loading, allJournalData, onPrescriptionHandled]);
 
   const filteredPrescriptions = prescriptions.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

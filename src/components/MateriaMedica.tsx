@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Sparkles, BookOpen, Search, Leaf, Wind, Droplets, Target, Layers, Loader2, Edit3, Save, Plus, Trash2, Undo2, PanelLeftOpen, RefreshCw } from 'lucide-react';
 import { Herb, WATERMARK_IMAGES } from '../types';
@@ -137,6 +138,19 @@ export default function MateriaMedica({
     }
   };
 
+  const deleteHerb = async (name: string) => {
+    if (window.confirm(`确定要删除中药“${name}”吗？`)) {
+      try {
+        await api.deleteHerb(name);
+        setLibrary(library.filter(h => h.name !== name));
+        setSelectedHerb(null);
+      } catch (e) {
+        console.error('Failed to delete herb', e);
+        alert('删除失败');
+      }
+    }
+  };
+
   const filteredHerbs = library.filter(herb => 
     herb.name.includes(searchQuery) || 
     (herb.pinyin && herb.pinyin.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -162,6 +176,9 @@ export default function MateriaMedica({
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-12 pr-4 py-2.5 bg-emerald-900/5 border border-transparent rounded-2xl focus:outline-none focus:bg-white focus:border-emerald-500/30 transition-all font-medium text-sm"
             />
+          </div>
+          <div className="text-[10px] font-black text-emerald-950/40 tracking-widest bg-emerald-50/50 px-3 py-1.5 rounded-full border border-emerald-900/5 whitespace-nowrap">
+            共 {library.length} 味中药
           </div>
           {isSyncing && (
             <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 animate-pulse">
@@ -261,6 +278,7 @@ export default function MateriaMedica({
               setSelectedHerb(updated);
             }}
             onBack={onBackToPrescription}
+            onDelete={deleteHerb}
           />
         )}
       </AnimatePresence>
@@ -268,7 +286,7 @@ export default function MateriaMedica({
   );
 }
 
-function HerbDetailModal({ herb, onClose, onSave, onBack }: { herb: Herb; onClose: () => void; onSave: (herb: Herb) => void; onBack?: () => void }) {
+function HerbDetailModal({ herb, onClose, onSave, onBack, onDelete }: { herb: Herb; onClose: () => void; onSave: (herb: Herb) => void; onBack?: () => void; onDelete?: (name: string) => void }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedHerb, setEditedHerb] = useState<Herb>(herb);
   const [relatedPrescriptions, setRelatedPrescriptions] = useState<{ date: string; name: string }[]>([]);
@@ -308,7 +326,7 @@ function HerbDetailModal({ herb, onClose, onSave, onBack }: { herb: Herb; onClos
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-8">
       <motion.div
         initial={{ opacity: 0 }}
@@ -334,6 +352,16 @@ function HerbDetailModal({ herb, onClose, onSave, onBack }: { herb: Herb; onClos
             >
               <Undo2 className="w-4 h-4 text-primary" />
               <span className="text-[10px] font-black uppercase tracking-widest">返回药方</span>
+            </button>
+          )}
+          {onDelete && (
+            <button 
+              onClick={() => onDelete(herb.name)}
+              className="px-4 py-2 bg-white text-rose-600 border border-rose-900/10 hover:bg-rose-50 transition-all flex items-center gap-2"
+              title="删除药材"
+            >
+              <Trash2 className="w-3 h-3" />
+              <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">删除</span>
             </button>
           )}
           <button 
@@ -631,6 +659,7 @@ function HerbDetailModal({ herb, onClose, onSave, onBack }: { herb: Herb; onClos
           )}
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -10,6 +10,24 @@ interface ExportModalProps {
   journalData: Record<string, any>;
 }
 
+const NOTE_LABELS: Record<string, string> = {
+  overview: '疾病概述',
+  mechanism: '病机与调理',
+  prescriptions: '方剂',
+  dietary: '食疗方',
+  'patent-med': '中成药',
+  external: '外治疗法',
+  footbath: '泡脚方',
+  'what-is': '什么是【疾病名】',
+  misconceptions: '治疗误区',
+  triggers: '诱发因素',
+  'tcm-mechanism': '中医病机',
+  strategy: '调理思路',
+  'base-presc': '基础方',
+  adjustments: '随证加减',
+  cases: '临床案例',
+};
+
 export default function ExportModal({ isOpen, onClose, journalData }: ExportModalProps) {
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-01'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -91,7 +109,10 @@ export default function ExportModal({ isOpen, onClose, journalData }: ExportModa
         try {
           const parsed = typeof entry.note === 'string' ? JSON.parse(entry.note) : entry.note;
           Object.entries(parsed).forEach(([key, val]) => {
-            if (key !== 'date' && val) content += `**${key}:** ${val}\n\n`;
+            if (key !== 'date' && val) {
+              const label = NOTE_LABELS[key] || key;
+              content += `**${label}:** ${val}\n\n`;
+            }
           });
         } catch {
           content += `${entry.note}\n\n`;
@@ -150,7 +171,10 @@ export default function ExportModal({ isOpen, onClose, journalData }: ExportModa
         try {
           const parsed = typeof entry.note === 'string' ? JSON.parse(entry.note) : entry.note;
           Object.entries(parsed).forEach(([key, val]) => {
-            if (key !== 'date' && val) bodyHtml += `<p><strong>${key}：</strong>${val}</p>`;
+            if (key !== 'date' && val) {
+              const label = NOTE_LABELS[key] || key;
+              bodyHtml += `<p><strong>${label}：</strong>${val}</p>`;
+            }
           });
         } catch {
           bodyHtml += `<p>${entry.note}</p>`;

@@ -1,7 +1,9 @@
-import React from 'react';
-import { motion } from 'motion/react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { ClipboardList, Microscope, Sprout, Coffee, Pill, Hand, Footprints } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { api } from '../services/api';
+import PrescriptionDetailModal from './PrescriptionDetailModal';
 
 interface ClinicalNoteViewerProps {
   data: string;
@@ -31,11 +33,9 @@ const SECTION_LABELS: Record<string, string> = {
 const SUBSECTION_LABELS: Record<string, string> = {
   'what-is': '什么是【疾病名】',
   misconceptions: '治疗误区',
-  'tcm-view': '中医如何看待',
   triggers: '诱发因素',
   'tcm-mechanism': '中医病机',
   strategy: '调理思路',
-  methods: '调理方法',
   'base-presc': '基础方',
   adjustments: '随证加减',
   cases: '临床案例',
@@ -54,28 +54,56 @@ export default function ClinicalNoteViewer({ data, onHerbClick }: ClinicalNoteVi
   }
 
   const sections = [
-    { id: 'overview', subs: ['what-is', 'misconceptions', 'tcm-view', 'triggers'] },
-    { id: 'mechanism', subs: ['tcm-mechanism', 'strategy', 'methods'] },
+    { id: 'overview', subs: ['what-is', 'misconceptions', 'triggers'] },
+    { id: 'mechanism', subs: ['tcm-mechanism', 'strategy'] },
     { id: 'prescriptions', subs: ['base-presc', 'adjustments', 'cases'], isPresc: true },
     { id: 'dietary' },
-    { id: 'patent-med' },
+    { id: 'patent-med', alwaysShow: true },
     { id: 'external' },
     { id: 'footbath' },
   ];
 
-  const hasContent = (id: string, subs?: string[]) => {
-    if (subs) {
-      return subs.some(sub => parsedData[sub]?.trim());
+  const [prescriptions, setPrescriptions] = useState<Record<string, any>>({});
+  const [selectedTcm, setSelectedTcm] = useState<any>(null);
+
+  useEffect(() => {
+    api.getJournals().then(data => {
+      const list: Record<string, any> = {};
+      Object.values(data).forEach((day: any) => {
+        if (day.tcm && day.tcm.name) {
+          list[day.tcm.name] = day.tcm;
+        }
+      });
+      setPrescriptions(list);
+    }).catch(console.error);
+  }, []);
+
+  const hasContent = (section: any) => {
+    if (section.alwaysShow) return true;
+    if (section.subs) {
+      return section.subs.some((sub: string) => parsedData[sub]?.trim());
     }
-    return parsedData[id]?.trim();
+    return parsedData[section.id]?.trim();
+  };
+
+  const cleanHtmlToText = (html: string) => {
+    if (!html) return '';
+    if (!html.includes('<')) return html;
+    return html
+      .replace(/<p><br><\/p>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .trim();
   };
 
   return (
     <div className="space-y-8 py-2">
       {sections.map((section) => {
-        if (!hasContent(section.id, section.subs)) return null;
+        if (!hasContent(section)) return null;
         const Icon = SECTION_ICONS[section.id];
-        
+
         return (
           <div key={section.id} className="space-y-4">
             <div className="flex items-center gap-2 border-b-2 border-emerald-950/10 pb-1">
@@ -108,22 +136,67 @@ export default function ClinicalNoteViewer({ data, onHerbClick }: ClinicalNoteVi
                               );
                             })}
                           </div>
+                        ) : sub === 'cases' ? (
+                          <div dangerouslySetInnerHTML={{ __html: content }} className="prose prose-sm prose-emerald max-w-none" />
                         ) : (
-                          content
+                          cleanHtmlToText(content)
                         )}
                       </div>
                     </div>
                   );
                 })}
               </div>
+            ) : section.id === 'patent-med' ? (
+              <div className="p-4 bg-[#f8fbfa] border border-emerald-950/5 text-xs leading-relaxed text-emerald-950 whitespace-pre-wrap">
+                {(() => {
+                  const content = cleanHtmlToText(parsedData[section.id] || '');
+                  if (!content) return <span className="text-emerald-900/40">暂时没有</span>;
+
+                  const names = Object.keys(prescriptions).filter(name => name && content.includes(name));
+                  if (names.length === 0) return content;
+
+                  // Sort names to show longer ones first if needed, though for a list it doesn't strictly matter
+                  const sortedNames = [...names].sort((a, b) => b.length - a.length);
+
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2 pb-3 border-b border-emerald-950/5">
+                        {sortedNames.map(name => (
+                          <button
+                            key={name}
+                            onClick={() => setSelectedTcm(prescriptions[name])}
+                            className="px-3 py-1.5 bg-emerald-800 text-white text-[11px] font-bold rounded shadow-sm hover:bg-emerald-900 transition-colors flex items-center gap-1.5"
+                          >
+                            <Sprout className="w-3.5 h-3.5 opacity-70" />
+                            {name}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="whitespace-pre-wrap leading-relaxed text-emerald-950/80">
+                        {content}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
             ) : (
               <div className="p-4 bg-[#f8fbfa] border border-emerald-950/5 text-xs leading-relaxed text-emerald-950 whitespace-pre-wrap">
-                {parsedData[section.id]}
+                {cleanHtmlToText(parsedData[section.id])}
               </div>
             )}
           </div>
         );
       })}
+
+      <AnimatePresence>
+        {selectedTcm && (
+          <PrescriptionDetailModal
+            data={selectedTcm}
+            onClose={() => setSelectedTcm(null)}
+            onHerbClick={onHerbClick}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
